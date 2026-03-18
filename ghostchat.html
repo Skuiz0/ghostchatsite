@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GhostChat — Messagerie éphémère & sécurisée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --violet: #7c6af7;
+    --violet-light: #9d8fff;
+    --violet-dark: #5a4dd4;
+    --violet-glow: rgba(124, 106, 247, 0.35);
+    --violet-subtle: rgba(124, 106, 247, 0.08);
+    --bg: #0a0a0f;
+    --bg2: #0e0e16;
+    --bg3: #12121c;
+    --card: #141420;
+    --card2: #191927;
+    --border: rgba(124, 106, 247, 0.15);
+    --border2: rgba(255,255,255,0.06);
+    --text: #e8e6f5;
+    --text-muted: #7c7a9a;
+    --text-dim: #4a4860;
+    --green: #4ade80;
+    --red: #f87171;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── Noise overlay ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999;
+    opacity: .45;
+  }
+
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--violet-dark); border-radius: 3px; }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(1.5rem, 5vw, 4rem);
+    height: 64px;
+    background: rgba(10, 10, 15, 0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: .6rem;
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 1.25rem;
+    color: var(--text); text-decoration: none;
+  }
+
+  .nav-logo .ghost-icon {
+    width: 32px; height: 32px;
+    background: var(--violet);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    box-shadow: 0 0 16px var(--violet-glow);
+  }
+
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: .9rem;
+    font-weight: 500;
+    transition: color .2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--violet);
+    color: #fff;
+    border: none;
+    padding: .5rem 1.25rem;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: .9rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .2s, transform .15s, box-shadow .2s;
+    box-shadow: 0 0 20px rgba(124,106,247,.3);
+  }
+  .nav-cta:hover {
+    background: var(--violet-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 24px rgba(124,106,247,.45);
+  }
+
+  .nav-mobile-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.4rem; cursor: pointer; }
+
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .nav-mobile-toggle { display: block; }
+  }
+
+  /* ─── HERO ─── */
+  #hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 7rem clamp(1.5rem, 5vw, 4rem) 5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Animated orbs */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: .25;
+    pointer-events: none;
+    animation: float 12s ease-in-out infinite;
+  }
+  .orb-1 { width: 500px; height: 500px; background: var(--violet); top: -150px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 350px; height: 350px; background: #5e3af7; bottom: 0; right: -100px; animation-delay: -4s; }
+  .orb-3 { width: 250px; height: 250px; background: #8b5cf6; top: 40%; left: 50%; transform: translateX(-50%); animation-delay: -8s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: var(--violet-subtle);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: .35rem 1rem;
+    font-size: .8rem;
+    font-weight: 500;
+    color: var(--violet-light);
+    margin-bottom: 2rem;
+    animation: fadeSlideDown .7s ease both;
+  }
+
+  .badge-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 9vw, 7rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    animation: fadeSlideDown .8s .1s ease both;
+  }
+
+  .hero-title .ghost { color: var(--violet); position: relative; display: inline-block; }
+  .hero-title .ghost::after {
+    content: '';
+    position: absolute; bottom: -4px; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--violet), transparent);
+    border-radius: 2px;
+  }
+
+  .hero-subtitle {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    font-weight: 300;
+    color: var(--text-muted);
+    max-width: 580px;
+    margin: 0 auto 2.5rem;
+    animation: fadeSlideDown .8s .2s ease both;
+  }
+
+  .hero-subtitle em { color: var(--violet-light); font-style: normal; font-weight: 500; }
+
+  .hero-cta-group {
+    display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    animation: fadeSlideDown .8s .3s ease both;
+  }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: var(--violet);
+    color: #fff;
+    padding: .85rem 2rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    font-family: var(--font-body);
+    transition: all .25s;
+    box-shadow: 0 0 30px rgba(124,106,247,.4);
+    position: relative; overflow: hidden;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+    transition: left .4s;
+  }
+  .btn-primary:hover::before { left: 100%; }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(124,106,247,.55);
+    background: var(--violet-light);
+  }
+
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: transparent;
+    color: var(--text);
+    padding: .85rem 2rem;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid var(--border2);
+    transition: all .25s;
+  }
+  .btn-secondary:hover {
+    border-color: var(--border);
+    background: var(--violet-subtle);
+    transform: translateY(-2px);
+  }
+
+  /* Mock app preview */
+  .hero-preview {
+    margin-top: 4rem;
+    width: 100%;
+    max-width: 860px;
+    animation: fadeSlideDown .9s .45s ease both;
+    position: relative;
+  }
+
+  .preview-frame {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(124,106,247,.08);
+  }
+
+  .preview-bar {
+    background: var(--card);
+    padding: .75rem 1rem;
+    display: flex; align-items: center; gap: .5rem;
+    border-bottom: 1px solid var(--border2);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #f87171; } .dot-y { background: #fbbf24; } .dot-g { background: #4ade80; }
+
+  .preview-url {
+    flex: 1; text-align: center;
+    background: var(--bg2);
+    border-radius: 6px;
+    padding: .3rem .75rem;
+    font-size: .75rem;
+    color: var(--text-muted);
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .preview-body { display: flex; height: 320px; }
+
+  .sidebar {
+    width: 220px; min-width: 220px;
+    background: var(--card);
+    border-right: 1px solid var(--border2);
+    display: flex; flex-direction: column;
+    padding: .75rem .5rem;
+    gap: .25rem;
+  }
+
+  .sidebar-server {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .5rem .6rem;
+    border-radius: 8px;
+    font-size: .8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .sidebar-server.active { background: var(--violet-subtle); color: var(--text); }
+  .sidebar-server:hover:not(.active) { background: var(--border2); }
+
+  .s-avatar {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--violet); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem;
+  }
+
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-left: auto; flex-shrink: 0; }
+
+  .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .chat-header {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--border2);
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .85rem; font-weight: 600;
+  }
+
+  .channel-icon { color: var(--violet); font-size: 1rem; }
+
+  .timer-badge {
+    margin-left: auto;
+    background: rgba(248,113,113,.15);
+    color: var(--red);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: 100px;
+    padding: .2rem .6rem;
+    font-size: .7rem;
+    display: flex; align-items: center; gap: .3rem;
+  }
+
+  .messages { flex: 1; padding: .75rem 1rem; display: flex; flex-direction: column; gap: .6rem; overflow: hidden; }
+
+  .msg { display: flex; gap: .6rem; align-items: flex-start; }
+  .msg-av { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; }
+
+  .msg-content { flex: 1; }
+  .msg-name { font-size: .7rem; font-weight: 600; margin-bottom: .2rem; }
+  .msg-text {
+    background: var(--card2);
+    border-radius: 0 10px 10px 10px;
+    padding: .5rem .75rem;
+    font-size: .78rem;
+    color: var(--text-muted);
+    display: inline-block;
+    position: relative;
+  }
+
+  .msg-ghost .msg-text { background: var(--violet-subtle); color: var(--text); }
+
+  .msg-timer { font-size: .65rem; color: var(--red); margin-top: .2rem; }
+
+  .typing-indicator {
+    display: flex; gap: 3px; padding: .5rem .75rem;
+    background: var(--card2); border-radius: 10px; width: fit-content;
+  }
+  .typing-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); animation: typingBounce .8s ease-in-out infinite; }
+  .typing-dot:nth-child(2) { animation-delay: .15s; }
+  .typing-dot:nth-child(3) { animation-delay: .3s; }
+  @keyframes typingBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); background: var(--violet); } }
+
+  .chat-input {
+    padding: .5rem .75rem;
+    margin: .5rem .75rem;
+    background: var(--card2);
+    border-radius: 10px;
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .78rem; color: var(--text-dim);
+    border: 1px solid var(--border2);
+  }
+  .input-icon { color: var(--violet); }
+
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── SECTION COMMON ─── */
+  section { padding: 6rem clamp(1.5rem, 5vw, 4rem); }
+
+  .section-label {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: var(--violet-subtle);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: .3rem .9rem;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--violet-light);
+    text-transform: uppercase; letter-spacing: .1em;
+    margin-bottom: 1.25rem;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin-bottom: 1rem;
+  }
+
+  .section-desc {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 540px;
+    font-weight: 300;
+  }
+
+  /* ─── FEATURES ─── */
+  #features { background: var(--bg2); }
+  .features-header { text-align: center; margin-bottom: 4rem; }
+  .features-header .section-desc { margin: 0 auto; }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    max-width: 1100px; margin: 0 auto;
+  }
+
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 1.75rem;
+    transition: transform .25s, border-color .25s, box-shadow .25s;
+    cursor: default;
+    position: relative; overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--violet), transparent);
+    opacity: 0; transition: opacity .3s;
+  }
+  .feature-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 0 30px var(--violet-glow);
+  }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: var(--violet-subtle);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; margin-bottom: 1.25rem;
+  }
+
+  .feature-title {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+  }
+
+  .feature-desc { font-size: .875rem; color: var(--text-muted); line-height: 1.6; font-weight: 300; }
+
+  /* ─── HOW IT WORKS ─── */
+  #how {
+    max-width: 1100px; margin: 0 auto;
+  }
+  #how-wrap { background: var(--bg); }
+  .how-container { max-width: 1100px; margin: 0 auto; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; margin-top: 4rem; }
+
+  .step {
+    position: relative;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    transition: transform .25s, box-shadow .25s;
+  }
+  .step:hover { transform: translateY(-6px); box-shadow: 0 25px 60px rgba(0,0,0,.4); }
+
+  .step-connector {
+    position: absolute; top: 50%; right: -1rem;
+    width: 2rem; height: 2px;
+    background: linear-gradient(90deg, var(--border), transparent);
+    display: none;
+  }
+
+  .step-num {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--violet);
+    box-shadow: 0 0 30px rgba(124,106,247,.5);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.3rem; font-weight: 800;
+    margin: 0 auto 1.5rem;
+    position: relative;
+  }
+
+  .step-num::after {
+    content: '';
+    position: absolute; inset: -5px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+  }
+
+  .step-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem; font-weight: 700; margin-bottom: .75rem;
+  }
+  .step-desc { font-size: .875rem; color: var(--text-muted); font-weight: 300; }
+
+  @media (max-width: 768px) { .steps { grid-template-columns: 1fr; } }
+
+  /* ─── SECURITY ─── */
+  #security { background: var(--bg2); }
+
+  .security-layout {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center;
+  }
+
+  .security-visual {
+    position: relative;
+  }
+
+  .encrypt-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .encrypt-box::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,.12), transparent 70%);
+    pointer-events: none;
+  }
+
+  .encrypt-row {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .enc-label { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); width: 60px; }
+
+  .enc-bar {
+    flex: 1; height: 8px; border-radius: 4px; overflow: hidden;
+    background: var(--bg2);
+    position: relative;
+  }
+  .enc-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--violet-dark), var(--violet-light));
+    animation: encPulse 3s ease-in-out infinite;
+  }
+  .enc-fill-2 { animation-delay: -1s; }
+  .enc-fill-3 { animation-delay: -2s; }
+
+  @keyframes encPulse {
+    0%, 100% { opacity: .7; } 50% { opacity: 1; }
+  }
+
+  .enc-val { font-family: monospace; font-size: .75rem; color: var(--violet-light); }
+
+  .enc-hash {
+    background: var(--bg2);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    margin-top: 1rem;
+    font-family: monospace;
+    font-size: .7rem;
+    color: var(--violet-light);
+    word-break: break-all;
+    line-height: 1.8;
+  }
+
+  .enc-title { font-size: .7rem; color: var(--text-dim); margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+
+  .shield-badge {
+    position: absolute; top: -12px; right: 1.5rem;
+    background: var(--violet);
+    color: #fff;
+    border-radius: 100px;
+    padding: .3rem .8rem;
+    font-size: .7rem;
+    font-weight: 700;
+    display: flex; align-items: center; gap: .4rem;
+    box-shadow: 0 0 20px var(--violet-glow);
+  }
+
+  .security-points { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2.5rem; }
+
+  .sec-point { display: flex; gap: 1rem; align-items: flex-start; }
+
+  .sec-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: 10px;
+    background: var(--violet-subtle);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+
+  .sec-text h4 { font-size: .95rem; font-weight: 600; margin-bottom: .3rem; }
+  .sec-text p { font-size: .85rem; color: var(--text-muted); font-weight: 300; }
+
+  @media (max-width: 900px) { .security-layout { grid-template-columns: 1fr; gap: 3rem; } }
+
+  /* ─── FAQ ─── */
+  #faq { max-width: 800px; margin: 0 auto; }
+  #faq-wrap { background: var(--bg); }
+
+  .faq-header { text-align: center; margin-bottom: 3rem; }
+
+  .faq-list { display: flex; flex-direction: column; gap: .75rem; }
+
+  .faq-item {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .faq-item.open { border-color: var(--border); }
+
+  .faq-q {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    font-weight: 600; font-size: .95rem;
+    user-select: none;
+    gap: 1rem;
+  }
+
+  .faq-arrow {
+    width: 24px; height: 24px; flex-shrink: 0;
+    border-radius: 6px;
+    background: var(--violet-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; color: var(--violet-light);
+    transition: transform .3s, background .2s;
+  }
+  .faq-item.open .faq-arrow { transform: rotate(180deg); background: var(--violet); color: #fff; }
+
+  .faq-a {
+    max-height: 0; overflow: hidden;
+    transition: max-height .35s ease, padding .35s ease;
+  }
+  .faq-item.open .faq-a { max-height: 200px; }
+
+  .faq-a-inner {
+    padding: 0 1.5rem 1.25rem;
+    font-size: .9rem;
+    color: var(--text-muted);
+    font-weight: 300;
+    line-height: 1.7;
+    border-top: 1px solid var(--border2);
+    padding-top: 1rem;
+  }
+
+  /* ─── CTA BANNER ─── */
+  #cta-banner {
+    background: var(--bg2);
+    padding: 5rem clamp(1.5rem, 5vw, 4rem);
+  }
+
+  .cta-inner {
+    max-width: 680px; margin: 0 auto; text-align: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 3.5rem 2.5rem;
+    position: relative; overflow: hidden;
+  }
+
+  .cta-inner::before {
+    content: '';
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--violet), transparent);
+  }
+
+  .cta-inner::after {
+    content: '';
+    position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+    width: 300px; height: 300px; border-radius: 50%;
+    background: var(--violet);
+    filter: blur(80px); opacity: .12;
+    pointer-events: none;
+  }
+
+  .cta-inner .section-title { font-size: clamp(1.75rem, 4vw, 2.5rem); margin-bottom: 1rem; }
+  .cta-inner p { color: var(--text-muted); margin-bottom: 2rem; font-weight: 300; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--card);
+    border-top: 1px solid var(--border2);
+    padding: 3rem clamp(1.5rem, 5vw, 4rem);
+  }
+
+  .footer-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 2rem;
+  }
+
+  .footer-brand { display: flex; align-items: center; gap: .6rem; }
+  .footer-brand span { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; }
+
+  .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+  .footer-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: .85rem;
+    transition: color .2s;
+  }
+  .footer-links a:hover { color: var(--violet-light); }
+
+  .footer-copy { color: var(--text-dim); font-size: .8rem; }
+
+  /* ─── SCROLL REVEAL ─── */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* ─── TYPING ANIMATION ─── */
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .cursor { display: inline-block; width: 2px; height: 1em; background: var(--violet); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ──────────── NAV ──────────── -->
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="ghost-icon">👻</div>
+    GhostChat
+  </a>
+  <div class="nav-links">
+    <a href="#features">Fonctionnalités</a>
+    <a href="#how-wrap">Comment ça marche</a>
+    <a href="#security">Sécurité</a>
+    <a href="#faq-wrap">FAQ</a>
+  </div>
+  <a class="nav-cta" href="https://ghostchat-sable.vercel.app/" target="_blank">Essayer maintenant →</a>
+  <button class="nav-mobile-toggle" onclick="toggleMenu(this)">☰</button>
+</nav>
+
+<!-- ──────────── HERO ──────────── -->
+<section id="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="hero-badge">
+    <span class="badge-dot"></span>
+    Application disponible maintenant
+  </div>
+
+  <h1 class="hero-title">
+    Communiquer<br>sans laisser de<br><span class="ghost" id="typed-word">trace.</span><span class="cursor"></span>
+  </h1>
+
+  <p class="hero-subtitle">
+    <em>GhostChat</em> — La messagerie éphémère chiffrée bout-en-bout. Vos messages disparaissent. Vos conversations restent <em>vraiment</em> privées.
+  </p>
+
+  <div class="hero-cta-group">
+    <a class="btn-primary" href="https://ghostchat-sable.vercel.app/" target="_blank">
+      <span>👻</span> Essayer maintenant
+    </a>
+    <a class="btn-secondary" href="#features">
+      <span>→</span> Découvrir les fonctionnalités
+    </a>
+  </div>
+
+  <div class="hero-preview reveal">
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="preview-url">ghostchat-sable.vercel.app</div>
+      </div>
+      <div class="preview-body">
+        <div class="sidebar">
+          <div class="sidebar-server active">
+            <div class="s-avatar">👻</div>
+            <span style="font-size:.78rem">Serveur privé</span>
+            <div class="status-dot"></div>
+          </div>
+          <div class="sidebar-server">
+            <div class="s-avatar" style="background:#5e3af7">🔒</div>
+            <span style="font-size:.78rem">Team Alpha</span>
+          </div>
+          <div class="sidebar-server">
+            <div class="s-avatar" style="background:#4ade80;color:#0a0a0f">🎮</div>
+            <span style="font-size:.78rem">Gaming</span>
+          </div>
+          <div style="margin-top:auto;padding:.5rem .6rem;border-top:1px solid var(--border2);display:flex;gap:.5rem;align-items:center">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--violet);display:flex;align-items:center;justify-content:center;font-size:.65rem">A</div>
+            <span style="font-size:.75rem;color:var(--text-muted)">anonyme#4291</span>
+          </div>
+        </div>
+        <div class="chat-area">
+          <div class="chat-header">
+            <span class="channel-icon">#</span> général
+            <div class="timer-badge">⏱ 5min</div>
+          </div>
+          <div class="messages">
+            <div class="msg">
+              <div class="msg-av" style="background:linear-gradient(135deg,#7c6af7,#5e3af7)"></div>
+              <div class="msg-content">
+                <div class="msg-name" style="color:var(--violet-light)">Ghost_42</div>
+                <div class="msg-text msg-ghost">Personne ne peut lire ceci sauf nous 🔐</div>
+                <div class="msg-timer">⏱ expire dans 4:37</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="msg-av" style="background:linear-gradient(135deg,#4ade80,#16a34a)"></div>
+              <div class="msg-content">
+                <div class="msg-name" style="color:#4ade80">Specter</div>
+                <div class="msg-text">Chiffrement AES-256 ✓ le serveur est aveugle</div>
+                <div class="msg-timer">⏱ expire dans 4:12</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="msg-av" style="background:linear-gradient(135deg,#fbbf24,#d97706)"></div>
+              <div class="msg-content">
+                <div class="msg-name" style="color:#fbbf24">Phantom</div>
+                <div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input">
+            <span class="input-icon">+</span>
+            <span>Message chiffré…</span>
+            <span style="margin-left:auto;display:flex;gap:.5rem;color:var(--text-dim)">🎙 📎 😊</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────── FEATURES ──────────── -->
+<section id="features">
+  <div class="features-header reveal">
+    <div class="section-label">✦ Fonctionnalités</div>
+    <h2 class="section-title">Tout ce dont vous avez besoin.<br>Rien que le serveur ne verra.</h2>
+    <p class="section-desc">Un arsenal complet de communication, conçu dès la fondation pour la confidentialité absolue.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">⏱</div>
+      <div class="feature-title">Messages éphémères</div>
+      <p class="feature-desc">Choisissez la durée de vie de chaque message : 1min, 5min, 1h, 24h ou personnalisé. Suppression automatique et irréversible.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🔐</div>
+      <div class="feature-title">Chiffrement AES-256</div>
+      <p class="feature-desc">Tout est chiffré côté client avant d'être envoyé. Le serveur ne stocke que du bruit cryptographique illisible.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📹</div>
+      <div class="feature-title">Appels vidéo WebRTC</div>
+      <p class="feature-desc">Appels audio et vidéo peer-to-peer sans serveur intermédiaire. Latence minimale, confidentialité maximale.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🖥</div>
+      <div class="feature-title">Partage d'écran</div>
+      <p class="feature-desc">Partagez votre écran en temps réel dans n'importe quel salon. Idéal pour la collaboration sécurisée.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🎙</div>
+      <div class="feature-title">Messages vocaux</div>
+      <p class="feature-desc">Enregistrez et envoyez des messages vocaux chiffrés. Ils s'auto-détruisent comme les autres messages.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">😄</div>
+      <div class="feature-title">Réactions emoji</div>
+      <p class="feature-desc">Réagissez aux messages avec des emojis. Les réactions disparaissent aussi avec le message parent.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">👥</div>
+      <div class="feature-title">Système d'amis</div>
+      <p class="feature-desc">Ajoutez des contacts, voyez leur statut en ligne en temps réel, organisez vos cercles de confiance.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🎨</div>
+      <div class="feature-title">Profil personnalisable</div>
+      <p class="feature-desc">Avatar, bannière, statut personnalisé et thème de couleur unique. Votre identité, vos règles.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🛡</div>
+      <div class="feature-title">Protection DDoS</div>
+      <p class="feature-desc">Infrastructure blindée contre les attaques DDoS, avec tableau de bord administrateur pour surveiller en temps réel.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────── HOW IT WORKS ──────────── -->
+<div id="how-wrap">
+  <section style="max-width:1100px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:1rem" class="reveal">
+      <div class="section-label">✦ Comment ça marche</div>
+      <h2 class="section-title">Simple. Sécurisé. En 3 étapes.</h2>
+      <p class="section-desc" style="margin:0 auto">Pas besoin de configuration complexe. GhostChat est sécurisé par défaut dès la première seconde.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h3 class="step-title">Créez votre compte fantôme</h3>
+        <p class="step-desc">Inscrivez-vous avec le strict minimum. Pas de vérification d'e-mail obligatoire, pas de numéro de téléphone. Votre anonymat commence ici.</p>
+      </div>
+      <div class="step reveal" style="transition-delay:.1s">
+        <div class="step-num">2</div>
+        <h3 class="step-title">Choisissez votre durée d'existence</h3>
+        <p class="step-desc">Avant chaque message, sélectionnez sa durée de vie. La clé de chiffrement est générée localement — le serveur n'y a jamais accès.</p>
+      </div>
+      <div class="step reveal" style="transition-delay:.2s">
+        <div class="step-num">3</div>
+        <h3 class="step-title">Communiquez, puis disparaissez</h3>
+        <p class="step-desc">Vos messages s'auto-détruisent à l'heure fixée. Aucune trace, aucun log, aucune mémoire. Comme si ça n'avait jamais existé.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ──────────── SECURITY ──────────── -->
+<section id="security">
+  <div class="security-layout">
+    <div class="security-visual reveal">
+      <div class="encrypt-box">
+        <div class="shield-badge">🛡 AES-256-GCM</div>
+        <div class="enc-title">Flux de chiffrement en temps réel</div>
+        <div class="encrypt-row">
+          <div class="enc-label">CLEF</div>
+          <div class="enc-bar"><div class="enc-fill" style="width:85%"></div></div>
+          <div class="enc-val">256-bit</div>
+        </div>
+        <div class="encrypt-row">
+          <div class="enc-label">IV</div>
+          <div class="enc-bar"><div class="enc-fill enc-fill-2" style="width:100%"></div></div>
+          <div class="enc-val">Random</div>
+        </div>
+        <div class="encrypt-row">
+          <div class="enc-label">HMAC</div>
+          <div class="enc-bar"><div class="enc-fill enc-fill-3" style="width:72%"></div></div>
+          <div class="enc-val">SHA-512</div>
+        </div>
+        <div class="enc-title" style="margin-top:1.25rem">Payload chiffré (ce que le serveur reçoit)</div>
+        <div class="enc-hash" id="enc-hash-display">U2FsdGVkX1...</div>
+      </div>
+    </div>
+
+    <div class="reveal" style="transition-delay:.15s">
+      <div class="section-label">✦ Sécurité</div>
+      <h2 class="section-title">Le serveur est<br>intentionnellement<br>aveugle.</h2>
+      <p class="section-desc">Nous avons conçu GhostChat pour que même nous ne puissions pas lire vos messages. Pas par choix — par architecture.</p>
+
+      <div class="security-points">
+        <div class="sec-point">
+          <div class="sec-icon">🔑</div>
+          <div class="sec-text">
+            <h4>Chiffrement côté client uniquement</h4>
+            <p>La clé AES-256 est générée et ne quitte jamais votre appareil. Seul le destinataire peut déchiffrer.</p>
+          </div>
+        </div>
+        <div class="sec-point">
+          <div class="sec-icon">🗑</div>
+          <div class="sec-text">
+            <h4>Suppression cryptographique garantie</h4>
+            <p>À l'expiration, les clés sont détruites avant les données. Sans clé, les données chiffrées deviennent inutilisables.</p>
+          </div>
+        </div>
+        <div class="sec-point">
+          <div class="sec-icon">🌐</div>
+          <div class="sec-text">
+            <h4>P2P pour les appels</h4>
+            <p>Les appels audio/vidéo passent directement entre pairs via WebRTC. Aucun flux ne transite par nos serveurs.</p>
+          </div>
+        </div>
+        <div class="sec-point">
+          <div class="sec-icon">🛡</div>
+          <div class="sec-text">
+            <h4>Zéro log, zéro métadonnée sensible</h4>
+            <p>Nous ne stockons pas les IP, les heures de connexion ou les participants d'une conversation.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ──────────── FAQ ──────────── -->
+<div id="faq-wrap">
+  <section>
+    <div class="faq-header reveal">
+      <div class="section-label">✦ FAQ</div>
+      <h2 class="section-title">Questions fréquentes</h2>
+      <p class="section-desc" style="margin:0 auto">Tout ce que vous voulez savoir sur GhostChat.</p>
+    </div>
+
+    <div class="faq-list" style="max-width:720px;margin:0 auto">
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          GhostChat peut-il être contraint de livrer mes messages à des autorités ?
+          <div class="faq-arrow">▼</div>
+        </div>
+        <div class="faq-a">
+          <div class="faq-a-inner">Non. Techniquement impossible. Puisque les messages sont chiffrés côté client et que les clés ne transitent jamais par nos serveurs, nous n'avons accès qu'à des données illisibles. Même sous contrainte légale, nous ne pouvons remettre que du bruit cryptographique.</div>
+        </div>
+      </div>
+
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Que se passe-t-il si je ferme l'app avant qu'un message expire ?
+          <div class="faq-arrow">▼</div>
+        </div>
+        <div class="faq-a">
+          <div class="faq-a-inner">Les minuteries de destruction tournent côté serveur de manière indépendante. Que vous soyez connecté ou non, le message sera supprimé à l'heure programmée. Vous ne pouvez pas "sauver" un message en restant hors ligne.</div>
+        </div>
+      </div>
+
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Les appels vidéo sont-ils aussi chiffrés ?
+          <div class="faq-arrow">▼</div>
+        </div>
+        <div class="faq-a">
+          <div class="faq-a-inner">Oui. Les appels audio et vidéo utilisent WebRTC avec DTLS-SRTP — un standard de chiffrement end-to-end pour la voix et la vidéo. Le flux passe directement entre les participants, sans jamais transiter par nos serveurs.</div>
+        </div>
+      </div>
+
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Puis-je utiliser GhostChat sans créer de compte ?
+          <div class="faq-arrow">▼</div>
+        </div>
+        <div class="faq-a">
+          <div class="faq-a-inner">Nous proposons des salons temporaires sans inscription pour une utilisation rapide. Pour les fonctionnalités complètes (amis, profil, salons persistants), un compte minimal suffit — juste un pseudonyme et un mot de passe, sans e-mail ni numéro de téléphone requis.</div>
+        </div>
+      </div>
+
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          GhostChat est-il open source ?
+          <div class="faq-arrow">▼</div>
+        </div>
+        <div class="faq-a">
+          <div class="faq-a-inner">La couche de chiffrement côté client est open source et auditée indépendamment — vous pouvez vérifier exactement comment vos clés sont générées et que rien ne "fuite" vers le serveur. Le reste de la plateforme est propriétaire pour protéger l'infrastructure.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ──────────── CTA BANNER ──────────── -->
+<section id="cta-banner">
+  <div class="cta-inner reveal">
+    <div class="section-label" style="margin:0 auto 1.25rem">👻 Rejoignez GhostChat</div>
+    <h2 class="section-title">Vos conversations méritent de disparaître.</h2>
+    <p>Rejoignez des milliers d'utilisateurs qui ont choisi la confidentialité réelle. Gratuit, instantané, inoubliablement éphémère.</p>
+    <a class="btn-primary" href="https://ghostchat-sable.vercel.app/" target="_blank" style="font-size:1.05rem;padding:1rem 2.5rem">
+      👻 Essayer GhostChat maintenant
+    </a>
+  </div>
+</section>
+
+<!-- ──────────── FOOTER ──────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="ghost-icon" style="width:28px;height:28px;border-radius:8px;background:var(--violet);display:flex;align-items:center;justify-content:center;font-size:.85rem;box-shadow:0 0 12px var(--violet-glow)">👻</div>
+      <span>GhostChat</span>
+    </div>
+    <div class="footer-links">
+      <a href="#features">Fonctionnalités</a>
+      <a href="#security">Sécurité</a>
+      <a href="#faq-wrap">FAQ</a>
+      <a href="https://ghostchat-sable.vercel.app/" target="_blank">Ouvrir l'app →</a>
+    </div>
+    <div class="footer-copy">© 2025 GhostChat — Messages éphémères & chiffrés</div>
+  </div>
+</footer>
+
+<script>
+  // ── Scroll reveal ──
+  const revealEls = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+  }, { threshold: 0.1 });
+  revealEls.forEach(el => observer.observe(el));
+
+  // ── FAQ toggle ──
+  function toggleFaq(btn) {
+    const item = btn.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+
+  // ── Typed word animation ──
+  const words = ['trace.', 'secret.', 'mémoire.', 'preuve.', 'trace.'];
+  let wi = 0, ci = 0, deleting = false;
+  const el = document.getElementById('typed-word');
+  function typeLoop() {
+    const word = words[wi];
+    if (!deleting) {
+      el.textContent = word.slice(0, ++ci);
+      if (ci === word.length) { deleting = true; setTimeout(typeLoop, 2000); return; }
+    } else {
+      el.textContent = word.slice(0, --ci);
+      if (ci === 0) { deleting = false; wi = (wi + 1) % words.length; }
+    }
+    setTimeout(typeLoop, deleting ? 60 : 90);
+  }
+  setTimeout(typeLoop, 1200);
+
+  // ── Fake hash animation ──
+  const chars = '0123456789abcdef';
+  function randHash() {
+    return Array.from({length: 64}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  }
+  const hashEl = document.getElementById('enc-hash-display');
+  if (hashEl) {
+    setInterval(() => {
+      hashEl.textContent = randHash().match(/.{1,8}/g).join(' ');
+    }, 1800);
+  }
+
+  // ── Nav mobile ──
+  function toggleMenu(btn) {
+    btn.textContent = btn.textContent === '☰' ? '✕' : '☰';
+  }
+</script>
+</body>
+</html>
